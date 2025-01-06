@@ -19,7 +19,7 @@ connectCloudinary();
 
 app.use(express.json());
 
-const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', "https://brico-frontend-2131.netlify.app", "https://brico-admin-1801.netlify.app"];
 
 app.use((req, res, next) => {
   const origin = req.headers.origin;
