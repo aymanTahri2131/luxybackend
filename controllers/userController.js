@@ -1,213 +1,55 @@
-import validator from "validator";
-import bcrypt from "bcrypt";
-import userModel from "../models/userModel.js";
+import User from "../models/User.js";
 import jwt from "jsonwebtoken";
-import { v2 as cloudinary } from "cloudinary";
-import artisanModel from "../models/artisanModel.js";
-import serviceModel from "../models/serviceModel.js";
-import appointmentModel from "../models/appointmentModel.js";
-// api to register user
 
-const registerUser = async (req, res) => {
-  try {
-    const { name, phone, password } = req.body;
-
-    if (!name || !phone || !password) {
-      return res.json({ success: false, message: "missing details" });
-    }
-
-    //validating strong password
-    if (password.length < 8) {
-      return res.json({ success: false, message: "Enater a strong password" });
-    }
-
-    //hashing user password
-
-    const salt = await bcrypt.genSalt(10);
-
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const userData = {
-      name,
-      phone,
-      password: hashedPassword,
-    };
-
-    const newuser = new userModel(userData);
-    const user = await newuser.save();
-
-    //_id
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "24h" });
-
-    res.json({ success: true, token });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
+const generateToken = (id) => {
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "30d" });
 };
 
-//API for user login
+// 🟢 Inscription
+export const registerUser = async (req, res) => {
+  const { name, email, phone, password, role } = req.body;
+  
+  const userExists = await User.findOne({ email });
+  if (userExists) return res.status(400).json({ message: "Utilisateur déjà existant" });
 
-const loginUser = async (req, res) => {
-  try {
-    const { phone, password } = req.body;
+  const user = await User.create({ name, email, phone, password, role });
 
-    const user = await userModel.findOne({ phone });
-
-    if (!user) {
-      return res.json({ success: false, message: "user does not exist" });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-
-    if (isMatch) {
-      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "24h" });
-      res.json({ success: true, token });
-    } else {
-      res.json({ success: false, message: "Invalid Credentials" });
-    }
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-//API to get user profile Data
-
-const getProfile = async (req, res) => {
-  try {
-    const { userId } = req.body;
-    const userData = await userModel.findById(userId).select("-password");
-    res.json({ success: true, userData });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-//APi to update user profile
-
-const updateProfile = async (req, res) => {
-  try {
-    const { userId, name, phone, address } = req.body;
-    const imgFile = req.file;
-    if (!name || !phone ) {
-      return res.json({ success: false, message: "Data Missing" });
-    }
-    await userModel.findByIdAndUpdate(userId, {
-      name,
-      phone,
-      address: JSON.parse(address),
+  if (user) {
+    res.status(201).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      token: generateToken(user._id),
     });
-    if (imgFile) {
-      //upload image to cloudinary
-
-      const imageUpload = await cloudinary.uploader.upload(imgFile.path, {
-        resource_type: "image",
-      });
-      const imageURL = imageUpload.secure_url;
-
-      await userModel.findByIdAndUpdate(userId, { image: imageURL });
-    }
-
-    res.json({ success: true, message: "Profile Updated" });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+  } else {
+    res.status(400).json({ message: "Erreur d'inscription" });
   }
 };
 
-//API to Book Appointment
+// 🟢 Connexion
+export const loginUser = async (req, res) => {
+  const { email, password } = req.body;
 
-const bookAppointment = async (req, res) => {
-  try {
-    const { userId, cart, totalAmount, option, selectedDateTime } = req.body;
+  const user = await User.findOne({ email });
 
-    if (!cart || !totalAmount || !option || !selectedDateTime) {
-      return res.status(400).json({
-        success: false,
-        message: "Manque d'infos !",
-      });
-    }
-
-    const userData = await userModel.findById(userId).select("-password");
-
-    const appointmentData = {
-      userId,
-      cart,
-      totalAmount,
-      option,
-      selectedDateTime,
-      userData,
-    };
-
-    const newAppointment = new appointmentModel(appointmentData);
-    await newAppointment.save();
-
-    res.json({ success: true, message: "Appointment Booked" });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-//API to get user appointments for frontend my-appointments page
-
-const listAppointment = async (req, res) => {
-  try {
-    const { userId } = req.body;
-    const appointments = await appointmentModel.find({ userId });
-    console.log(appointments);
-
-    res.json({ success: true, appointments });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-//API to cancel to appointment
-
-const cancelAppointment = async (req, res) => {
-  try {
-    const { userId, appointmentId } = req.body;
-    console.log(appointmentId);
-
-    const appointmentData = await appointmentModel.findById(appointmentId);
-    //checking user same as appointment use
-    if (userId !== appointmentData.userId) {
-      return res.json({ success: false, message: "Unauthorized action" });
-    }
-
-    await appointmentModel.findByIdAndUpdate(appointmentId, {
-      cancelled: true,
+  if (user && (await user.matchPassword(password))) {
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      token: generateToken(user._id),
     });
-
-    res.json({ success: true, message: "Appointment cancelled" });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
+  } else {
+    res.status(401).json({ message: "Email ou mot de passe invalide" });
   }
 };
 
-const userList = async (req, res) => {
-  try {
-    const users = await userModel.find({});
-    res.json({ success: true, users });
-  } catch (error) {
-    console.log(error);
-    res.json({ success: false, message: error.message });
-  }
-};
-
-
-export default {
-  userList,
-  registerUser,
-  loginUser,
-  getProfile,
-  updateProfile,
-  bookAppointment,
-  listAppointment,
-  cancelAppointment,
+// 🟢 Récupération des utilisateurs (Admin seulement)
+export const getUsers = async (req, res) => {
+  const users = await User.find().select("-password");
+  res.json(users);
 };

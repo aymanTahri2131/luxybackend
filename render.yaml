@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: backend-LUXY-Marbre
+    env: node
+    buildCommand: npm install
+    startCommand: npm run dev
+    envVars:
+      - key: MONGO_URI
+        value: "mongodb+srv://tayman1801:jHhwsS7h4Ew2yUI3@marmo.8dcsh.mongodb.net/"
+      - key: PORT
+        value: "4000"
