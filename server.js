@@ -15,7 +15,7 @@ const port = process.env.PORT || 4000;
 connectDB();
 
 app.use(cors({
-  origin: "https://luxy-marbre.netlify.app", // ✅ Remplace par l'URL Netlify
+  origin: ["https://luxy-marbre.netlify.app", "http://localhost:3000"], // ✅ Remplace par l'URL Netlify
   methods: "GET,POST,PUT,DELETE",
   allowedHeaders: "Content-Type,Authorization"
 }));

@@ -5,6 +5,7 @@ const quotationSchema = new mongoose.Schema(
     reference: { type: String, unique: true, required: true },
     clientName: { type: String, required: true },
     clientPhone: { type: String, required: true },
+    type: { type: String, enum: ["client", "fournisseur"] , required: true },
     products: [
       {
         productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },

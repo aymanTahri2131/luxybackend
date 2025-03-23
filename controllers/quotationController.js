@@ -20,7 +20,7 @@ const generateReference = async () => {
 // 🟢 Création d'un devis avec référence automatique
 export const createQuotation = async (req, res) => {
   try {
-    const { clientName, clientPhone, products } = req.body;
+    const { clientName, clientPhone, products, type } = req.body;
     const reference = await generateReference();
 
     let totalAmount = 0;
@@ -45,7 +45,7 @@ export const createQuotation = async (req, res) => {
       });
     }
 
-    const quotation = new Quotation({ reference, clientName, clientPhone, products: quotationProducts, totalAmount });
+    const quotation = new Quotation({ reference, clientName, clientPhone, products: quotationProducts, totalAmount, type });
     await quotation.save();
 
     res.status(201).json(quotation);

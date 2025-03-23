@@ -61,6 +61,24 @@ const MONTHS = [
     }
   };
 
+  export const getQuotationTypeStats = async (req, res) => {
+    try {
+      const stats = await Quotation.aggregate([
+        {
+          $group: {
+            _id: "$type", // "client" ou "fournisseur"
+            count: { $sum: 1 },
+          },
+        },
+      ]);
+  
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Erreur lors du calcul des statistiques" });
+    }
+  };
+  
+
   export const getLowStockProducts = async (req, res) => {
     try {
       const lowStockProducts = await Product.find({ stock: { $lt: 10 } }).select("name stock");
